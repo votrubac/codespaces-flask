@@ -1,7 +1,15 @@
 import flask
 from flask import Flask
+from random import randint
 
 app = Flask(__name__)
+
+
+game_cache = {}
+
+def rand_xyz() -> str:
+    a, z = ord("a"), ord("z")
+    return "".join(chr(randint(a, z)) for _ in range(0, 3))
 
 @app.route("/")
 def hello_world():
@@ -9,8 +17,10 @@ def hello_world():
 
 @app.route("/new_game")
 def new_game():
-    # Randomly generate game id and store it in cache.
-    return "abx-xyi-zxs"
+    while True:
+        id = f"{rand_xyz()}-{rand_xyz()}-{rand_xyz()}"
+        if id not in game_cache:
+            return id
 
 @app.route("/join_game/<game_id>")
 def join_game(game_id: str):
