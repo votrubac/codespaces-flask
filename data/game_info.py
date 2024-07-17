@@ -2,6 +2,21 @@ from dataclasses import dataclass
 from dataclasses import field
 from enum import Enum
 
+class TurnResult(str, Enum):
+    MISS = "MISS"
+    HIT = "HIT"
+    KILL = "KILL"
+
+class TurnRule(str, Enum):
+    SWITCH = "SWITCH"
+    TILL_MISS = "TILL_MISS"
+
+class GameState(str, Enum):
+    LOBBY = "LOBBY"
+    SETUP = "SETUP"
+    TURN = "TURN"
+    END = "END"
+
 @dataclass
 class Player:
     id: str
@@ -13,21 +28,24 @@ class Ship:
     x: int
     y: int
     angle: int
+    hits: set[tuple[int, int]] = field(default_factory=set)
+
+    def killed(self) -> bool:
+        return len(self.hits) == self.type
+
+    def turn(self, x, y) -> TurnResult:
+
+        for i in range(self.x, self.x + (self.type if self.angle == 0 else 1)):
+            for j in range(self.y, self.y + (1 if self.angle == 0 else self.type)):
+                if i == x and j == y: # hit
+                    self.hits.add((x, y))
+                    return TurnResult.KILL if self.killed() else TurnResult.HIT
+
+        return TurnResult.MISS
 
 @dataclass
 class Board:
     ships: list[Ship] = field(default_factory=list)
-
-class TurnResult(str, Enum):
-    MISS = "MISS"
-    HIT = "HIT"
-    KILL = "KILL"
-
-class GameState(str, Enum):
-    LOBBY = "LOBBY"
-    SETUP = "SETUP"
-    TURN = "TURN"
-    END = "END"
 
 @dataclass
 class Turn:
@@ -43,11 +61,11 @@ class GameStatus:
     players_order: list[str]
     turns: dict[str,list[Turn]] = field(default_factory=list)
 
-
 @dataclass
 class GameInfo:
     """Class for keeping track of the game status."""
     id: str
+    turn_rule: TurnRule
     players: dict[str,Player] = field(default_factory=dict)
     boards: dict[str,Board] = field(default_factory=dict)
     player_order: list[str] = field(default_factory=list)

@@ -1,7 +1,7 @@
 import flask
 import json
 from dataclasses import asdict, replace
-from data.game_info import Player, GameInfo, Board, Turn, TurnResult
+from data.game_info import Player, GameInfo, Board, Turn, TurnResult, TurnRule
 from uuid import uuid4
 from flask import Flask
 from flask import request
@@ -25,9 +25,10 @@ def hello_world():
 @app.route("/new_game")
 def new_game():
     id = test_game_id # test id
+    turn_rule = TurnRule(request.args.get("turn_type"))
     while id and id in game_cache:
         id = f"{rand_xyz()}-{rand_xyz()}-{rand_xyz()}"
-    game = GameInfo(id)
+    game = GameInfo(id, turn_rule)
     player1_id = test_uuid("a") if game.id == test_game_id else str(uuid4())
     player1 = Player(player1_id, "Player 1")
     game.players[player1.id] = player1
