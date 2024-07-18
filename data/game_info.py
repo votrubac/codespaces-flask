@@ -28,15 +28,20 @@ class Ship:
     x: int
     y: int
     angle: int
-    hits: set[tuple[int, int]] = field(default_factory=set)
+    
+
+@dataclass
+class ShipAndHits:
+    ship: Ship
+    hits: set[tuple[int, int]] = field(default_factory=set)    
 
     def killed(self) -> bool:
-        return len(self.hits) == self.type
+        return len(self.hits) == self.ship.type
 
-    def turn(self, x, y) -> TurnResult:
-
-        for i in range(self.x, self.x + (self.type if self.angle == 0 else 1)):
-            for j in range(self.y, self.y + (self.type if self.angle == 90 else 1)):
+    def turn(self, x, y) -> TurnResult:        
+        s = self.ship
+        for i in range(s.x, s.x + (s.type if s.angle == 0 else 1)):
+            for j in range(s.y, s.y + (s.type if s.angle == 90 else 1)):
                 if i == x and j == y: # hit
                     self.hits.add((x, y))
                     return TurnResult.KILL if self.killed() else TurnResult.HIT
@@ -44,9 +49,13 @@ class Ship:
         return TurnResult.MISS
 
 @dataclass
-class Board:
+class Ships:
     ships: list[Ship] = field(default_factory=list)
 
+@dataclass
+class Board:
+    ships: list[ShipAndHits] = field(default_factory=list)
+    
 @dataclass
 class Turn:
     x: int
@@ -86,5 +95,3 @@ class GameInfo:
         players_order = [self.players[player_id].name for player_id in self.player_order]
         turns = {self.players[player_id].name: turns for player_id, turns in self.player_turns.items()}
         return GameStatus(self.get_game_state(), self.current_player, joined_players, players_order, turns)
-
-

@@ -1,7 +1,16 @@
 import flask
 import json
 from dataclasses import asdict, replace
-from data.game_info import Player, GameInfo, Board, Turn, TurnResult, TurnRule
+from data.game_info import (
+    Player,
+    GameInfo,
+    Board,
+    Turn,
+    TurnResult,
+    TurnRule,
+    Ships,
+    ShipAndHits,
+)
 from uuid import uuid4
 from flask import Flask
 from flask import request
@@ -11,20 +20,24 @@ app = Flask(__name__)
 test_game_id = "aaa-aaa-aaa"
 game_cache = {}
 
+
 def rand_xyz() -> str:
     a, z = ord("a"), ord("z")
     return "".join(chr(randint(a, z)) for _ in range(0, 3))
 
+
 def test_uuid(ch: str) -> str:
-    return f'{ch * 8}-{ch * 4}-{ch * 4}-{ch * 4}-{ch * 12}'
+    return f"{ch * 8}-{ch * 4}-{ch * 4}-{ch * 4}-{ch * 12}"
+
 
 @app.route("/")
 def hello_world():
-    return f"Game server is running. Flask version {flask.__version__}."    
+    return f"Game server is running. Flask version {flask.__version__}."
+
 
 @app.route("/new_game")
 def new_game():
-    id = test_game_id # test id
+    id = test_game_id  # test id
     turn_rule = TurnRule(request.args.get("turn_rule"))
     while id and id in game_cache:
         id = f"{rand_xyz()}-{rand_xyz()}-{rand_xyz()}"
@@ -35,6 +48,7 @@ def new_game():
     game.player_turns[player1.id] = []
     game_cache[id] = game
     return {"id": id, "player": player1}
+
 
 @app.route("/join_game/<id>")
 def join_game(id: str):
@@ -52,6 +66,7 @@ def join_game(id: str):
     game_cache[id] = game
     return {"id": id, "player": player2}
 
+
 @app.route("/set_board/<id>")
 def set_board(id: str):
     game: GameInfo = replace(game_cache[id])
@@ -61,16 +76,18 @@ def set_board(id: str):
     if player_id in game.boards:
         player_name = game.players[player_id].name
         raise RuntimeError(f"Board for {player_name} has been set.")
-    board_dict = json.loads(request.args.get("board"))
-    board = Board(**board_dict)
-    game.boards[player_id] = board
+    ships_dict = json.loads(request.args.get("ships"))
+    ships = Ships(**ships_dict)
+    game.boards[player_id] = Board([ShipAndHits(ship) for ship in ships.ships])
     game_cache[id] = game
-    return asdict(board)
+    return asdict(ships)
+
 
 @app.route("/status/<id>")
 def status(id: str):
     game: GameInfo = replace(game_cache[id])
     return asdict(game.get_status())
+
 
 @app.route("/turn/<id>")
 def turn(id: str):
@@ -92,9 +109,9 @@ def turn(id: str):
     turn_result = TurnResult.MISS
     for ship in game.boards[player_id].ships:
         result = ship.turn(x, y)
-        if (result != TurnResult.MISS):
+        if result != TurnResult.MISS:
             break
-    
+
     if game.turn_rule == TurnRule.ONE_BY_ONE or turn_result == TurnResult.MISS:
         # Switching the turn.
         game.current_player = (game.current_player + 1) % len(game.players)
@@ -103,4 +120,3 @@ def turn(id: str):
     game.player_turns[player_id].append(turn)
     game_cache[id] = game
     return asdict(turn)
-    
