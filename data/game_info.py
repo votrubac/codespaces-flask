@@ -8,7 +8,7 @@ class TurnResult(str, Enum):
     KILL = "KILL"
 
 class TurnRule(str, Enum):
-    SWITCH = "SWITCH"
+    ONE_BY_ONE = "ONE_BY_ONE"
     TILL_MISS = "TILL_MISS"
 
 class GameState(str, Enum):
@@ -36,7 +36,7 @@ class Ship:
     def turn(self, x, y) -> TurnResult:
 
         for i in range(self.x, self.x + (self.type if self.angle == 0 else 1)):
-            for j in range(self.y, self.y + (1 if self.angle == 0 else self.type)):
+            for j in range(self.y, self.y + (self.type if self.angle == 90 else 1)):
                 if i == x and j == y: # hit
                     self.hits.add((x, y))
                     return TurnResult.KILL if self.killed() else TurnResult.HIT

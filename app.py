@@ -25,7 +25,7 @@ def hello_world():
 @app.route("/new_game")
 def new_game():
     id = test_game_id # test id
-    turn_rule = TurnRule(request.args.get("turn_type"))
+    turn_rule = TurnRule(request.args.get("turn_rule"))
     while id and id in game_cache:
         id = f"{rand_xyz()}-{rand_xyz()}-{rand_xyz()}"
     game = GameInfo(id, turn_rule)
@@ -88,9 +88,18 @@ def turn(id: str):
     cur_player_id = game.player_order[game.current_player]
     if player_id != cur_player_id:
         raise RuntimeError(f"Waiting for {game.players[cur_player_id].name}'s turn.")
-    # TODO: check if the turns goes to the next player or not.
-    game.current_player = (game.current_player + 1) % len(game.players)
-    turn = Turn(x, y, TurnResult.MISS)
+
+    turn_result = TurnResult.MISS
+    for ship in game.boards[player_id].ships:
+        result = ship.turn(x, y)
+        if (result != TurnResult.MISS):
+            break
+    
+    if game.turn_rule == TurnRule.ONE_BY_ONE or turn_result == TurnResult.MISS:
+        # Switching the turn.
+        game.current_player = (game.current_player + 1) % len(game.players)
+
+    turn = Turn(x, y, turn_result)
     game.player_turns[player_id].append(turn)
     game_cache[id] = game
     return asdict(turn)
