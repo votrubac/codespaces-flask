@@ -8,6 +8,7 @@ from data.game_info import (
     Turn,
     TurnResult,
     TurnRule,
+    Ship,
     Ships,
     ShipAndHits,
 )
@@ -78,7 +79,7 @@ def set_board(id: str):
         raise RuntimeError(f"Board for {player_name} has been set.")
     ships_dict = json.loads(request.args.get("ships"))
     ships = Ships(**ships_dict)
-    game.boards[player_id] = Board([ShipAndHits(ship) for ship in ships.ships])
+    game.boards[player_id] = Board([ShipAndHits(Ship(**ship)) for ship in ships.ships])
     game_cache[id] = game
     return asdict(ships)
 
@@ -108,8 +109,8 @@ def turn(id: str):
 
     turn_result = TurnResult.MISS
     for ship in game.boards[player_id].ships:
-        result = ship.turn(x, y)
-        if result != TurnResult.MISS:
+        turn_result = ship.turn(x, y)
+        if turn_result != TurnResult.MISS:
             break
 
     if game.turn_rule == TurnRule.ONE_BY_ONE or turn_result == TurnResult.MISS:
