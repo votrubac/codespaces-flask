@@ -107,13 +107,21 @@ def turn(id: str):
     if player_id != cur_player_id:
         raise RuntimeError(f"Waiting for {game.players[cur_player_id].name}'s turn.")
 
+    other_player_id = game.player_order[(game.current_player + 1) % len(game.player_order)]
+    ships = game.boards[other_player_id].ships
     turn_result = TurnResult.MISS
-    for ship in game.boards[player_id].ships:
+    for ship in ships:
         turn_result = ship.turn(x, y)
         if turn_result != TurnResult.MISS:
             break
 
-    if game.turn_rule == TurnRule.ONE_BY_ONE or turn_result == TurnResult.MISS:
+    game_over = TurnResult.KILL and len(ships) == sum(
+        1 for ship in ships if ship.killed()
+    )
+
+    if game_over:
+        game.winner = game.players[cur_player_id].name
+    elif game.turn_rule == TurnRule.ONE_BY_ONE or turn_result == TurnResult.MISS:
         # Switching the turn.
         game.current_player = (game.current_player + 1) % len(game.players)
 

@@ -24,29 +24,30 @@ def ids() -> GameIds:
         res2 = test_client.get(f"/join_game/{game_id}")
         player2_id = res2.json["player"]["id"]
 
-        ships = Ships([Ship(5, 0, 0, 0), Ship(3, 0, 2, 90)])
+        ships1 = Ships([Ship(5, 0, 0, 0), Ship(3, 0, 2, 90)])
+        ships2 = Ships([Ship(5, 3, 0, 0), Ship(3, 0, 5, 90)])
 
-        ships_dump = json.dumps(asdict(ships))
         res = test_client.get(
-            f"/set_board/{game_id}?player_id={player1_id}&ships={ships_dump}"
+            f"/set_board/{game_id}?player_id={player1_id}&ships={json.dumps(asdict(ships1))}"
         )
         assert res.status_code == 200
         res = test_client.get(
-            f"/set_board/{game_id}?player_id={player2_id}&ships={ships_dump}"
+            f"/set_board/{game_id}?player_id={player2_id}&ships={json.dumps(asdict(ships2))}"
         )
         assert res.status_code == 200
 
         return GameIds(game_id, player1_id, player2_id)
 
 
-def make_turn(client, game_id, player_id, x, y):
-    res = client.get(f"/turn/{game_id}?player_id={player_id}&x={x}&y={y}")
-    assert res.status_code == 200
+def assert_turns(client, game_id, player_id, x_y_res: list[(int, int, TurnResult)]):
+    for x, y, turn_result in x_y_res:
 
-    return res.json["result"]
+        res = client.get(f"/turn/{game_id}?player_id={player_id}&x={x}&y={y}")
+        assert res.status_code == 200
+        assert res.json["result"] == turn_result
 
 
-def test_ship_kill(ids: GameIds):
+def test_win(ids: GameIds):
     with app.test_client() as test_client:
         res = test_client.get(f"/status/{ids.game_id}")
         assert res.json["state"] == GameState.TURN
@@ -54,12 +55,34 @@ def test_ship_kill(ids: GameIds):
         players = res.json["players_order"]
         current_player = res.json["current_player"]
 
-        player_id = (
-            ids.player1_id if players[current_player] == "Player 1" else ids.player2_id
+        if players[current_player] != "Player 2":
+            # Making a miss to switch turn to Player 1.
+            assert_turns(
+                test_client, ids.game_id, ids.player1_id, [(0, 0, TurnResult.MISS)]
+            )
+
+        player_id = ids.player2_id
+
+        assert_turns(  # sinking the first ship.
+            test_client,
+            ids.game_id,
+            player_id,
+            [
+                (0, 0, TurnResult.HIT),
+                (1, 0, TurnResult.HIT),
+                (2, 0, TurnResult.HIT),
+                (3, 0, TurnResult.HIT),
+                (4, 0, TurnResult.KILL),
+            ],
         )
 
-        assert make_turn(test_client, ids.game_id, player_id, 0, 0) == TurnResult.HIT
-        assert make_turn(test_client, ids.game_id, player_id, 1, 0) == TurnResult.HIT
-        assert make_turn(test_client, ids.game_id, player_id, 2, 0) == TurnResult.HIT        
-        assert make_turn(test_client, ids.game_id, player_id, 3, 0) == TurnResult.HIT
-        assert make_turn(test_client, ids.game_id, player_id, 4, 0) == TurnResult.KILL
+        assert_turns(  # sinking the second ship.
+            test_client,
+            ids.game_id,
+            player_id,
+            [(0, 2, TurnResult.HIT), (0, 3, TurnResult.HIT), (0, 4, TurnResult.KILL)],
+        )
+
+        res = test_client.get(f"/status/{ids.game_id}")
+        assert res.json["state"] == GameState.FINISHED
+        assert res.json["winner"] == "Player 2"
