@@ -15,9 +15,12 @@ from data.game_info import (
 from uuid import uuid4
 from flask import Flask
 from flask import request
+from flask_cors import CORS
 from random import randint, shuffle
 
 app = Flask(__name__)
+CORS(app)
+
 test_game_id = "aaa-aaa-aaa"
 game_cache = {}
 
