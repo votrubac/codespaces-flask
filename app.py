@@ -1,17 +1,7 @@
 import flask
 import json
 from dataclasses import asdict, replace
-from data.game_info import (
-    Player,
-    GameInfo,
-    Board,
-    Turn,
-    TurnResult,
-    TurnRule,
-    Ship,
-    Ships,
-    ShipAndHits,
-)
+from data.game_info import Player, GameInfo, Board, Turn, TurnResult, TurnRule, Ship
 from uuid import uuid4
 from flask import Flask
 from flask import request
@@ -82,20 +72,15 @@ def set_board(id: str):
         raise RuntimeError(f"Board for {player_name} has been set.")
     ships_dict = json.loads(request.args.get("ships"))
     try:
-        board = Board([ShipAndHits(Ship(set(
-            [(c[0], c[1]) for c in ship["cells"]]
-            ))) for ship in ships_dict['ships']])
+        board = Board([Ship(set([(c[0], c[1]) for c in ship])) for ship in ships_dict])
 
         game.boards[player_id] = board
         game_cache[id] = game
         return ships_dict
-    
+
     except Exception as e:
         app.log.error(e)
         raise
-
-
-
 
 
 @app.route("/status/<id>")
@@ -120,9 +105,13 @@ def turn(id: str):
 
         cur_player_id = game.player_order[game.current_player]
         if player_id != cur_player_id:
-            raise RuntimeError(f"Waiting for {game.players[cur_player_id].name}'s turn.")
+            raise RuntimeError(
+                f"Waiting for {game.players[cur_player_id].name}'s turn."
+            )
 
-        other_player_id = game.player_order[(game.current_player + 1) % len(game.player_order)]
+        other_player_id = game.player_order[
+            (game.current_player + 1) % len(game.player_order)
+        ]
         ships = game.boards[other_player_id].ships
         turn_result = TurnResult.MISS
         for ship in ships:

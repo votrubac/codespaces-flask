@@ -26,21 +26,16 @@ class Player:
     id: str
     name: str
 
-
 @dataclass
 class Ship:
     cells: set[tuple[int, int]]
-
-@dataclass
-class ShipAndHits:
-    ship: Ship
     hits: set[tuple[int, int]] = field(default_factory=set)
 
     def killed(self) -> bool:
-        return len(self.hits) == len(self.ship.cells)
+        return len(self.hits) == len(self.cells)
 
     def turn(self, x, y) -> TurnResult:
-        if (x, y) in self.ship.cells:
+        if (x, y) in self.cells:
             self.hits.add((x, y))
             return TurnResult.KILL if self.killed() else TurnResult.HIT
 
@@ -54,7 +49,7 @@ class Ships:
 
 @dataclass
 class Board:
-    ships: list[ShipAndHits] = field(default_factory=list)
+    ships: list[Ship] = field(default_factory=list)
 
 
 @dataclass
