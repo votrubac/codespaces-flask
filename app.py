@@ -73,6 +73,7 @@ def join_game(id: str):
 
 @app.route("/set_board/<id>")
 def set_board(id: str):
+    
     game: GameInfo = replace(game_cache[id])
     player_id = request.args.get("player_id")
     if player_id not in game.players:
@@ -81,10 +82,20 @@ def set_board(id: str):
         player_name = game.players[player_id].name
         raise RuntimeError(f"Board for {player_name} has been set.")
     ships_dict = json.loads(request.args.get("ships"))
-    ships = Ships(**ships_dict)
-    game.boards[player_id] = Board([ShipAndHits(Ship(**ship)) for ship in ships.ships])
-    game_cache[id] = game
-    return asdict(ships)
+    try:
+        board = [ShipAndHits(Ship(set(
+            [(c[0], c[1]) for c in ship["cells"]]
+            ))) for ship in ships_dict['ships']]
+
+        game.boards[player_id] = board
+        game_cache[id] = game
+        
+    
+    except Exception as e:
+        print(e)
+
+    return ships_dict
+
 
 
 @app.route("/status/<id>")

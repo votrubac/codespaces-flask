@@ -29,11 +29,7 @@ class Player:
 
 @dataclass
 class Ship:
-    type: int
-    x: int
-    y: int
-    angle: int
-
+    cells: set[tuple[int, int]]
 
 @dataclass
 class ShipAndHits:
@@ -41,15 +37,12 @@ class ShipAndHits:
     hits: set[tuple[int, int]] = field(default_factory=set)
 
     def killed(self) -> bool:
-        return len(self.hits) == self.ship.type
+        return len(self.hits) == len(self.ship.cells)
 
     def turn(self, x, y) -> TurnResult:
-        s = self.ship
-        for i in range(s.x, s.x + (s.type if s.angle == 0 else 1)):
-            for j in range(s.y, s.y + (s.type if s.angle == 90 else 1)):
-                if i == x and j == y:  # hit
-                    self.hits.add((x, y))
-                    return TurnResult.KILL if self.killed() else TurnResult.HIT
+        if (x, y) in self.ship.cells:
+            self.hits.add((x, y))
+            return TurnResult.KILL if self.killed() else TurnResult.HIT
 
         return TurnResult.MISS
 
