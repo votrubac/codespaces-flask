@@ -73,7 +73,6 @@ def join_game(id: str):
 
 @app.route("/set_board/<id>")
 def set_board(id: str):
-    
     game: GameInfo = replace(game_cache[id])
     player_id = request.args.get("player_id")
     if player_id not in game.players:
@@ -83,18 +82,19 @@ def set_board(id: str):
         raise RuntimeError(f"Board for {player_name} has been set.")
     ships_dict = json.loads(request.args.get("ships"))
     try:
-        board = [ShipAndHits(Ship(set(
+        board = Board([ShipAndHits(Ship(set(
             [(c[0], c[1]) for c in ship["cells"]]
-            ))) for ship in ships_dict['ships']]
+            ))) for ship in ships_dict['ships']])
 
         game.boards[player_id] = board
         game_cache[id] = game
-        
+        return ships_dict
     
     except Exception as e:
-        print(e)
+        app.log.error(e)
+        raise
 
-    return ships_dict
+
 
 
 
@@ -106,40 +106,44 @@ def status(id: str):
 
 @app.route("/turn/<id>")
 def turn(id: str):
-    game: GameInfo = replace(game_cache[id])
-    player_id = request.args.get("player_id")
-    x = int(request.args.get("x"))
-    y = int(request.args.get("y"))
-    if player_id not in game.players:
-        raise RuntimeError(f"Incorrect player id: {player_id}.")
-    if len(game.players) != game.min_players:
-        raise RuntimeError(f"Waiting for player(s) to join.")
-    if len(game.players) != len(game.boards):
-        raise RuntimeError(f"Waiting for player(s) to set the board.")
+    try:
+        game: GameInfo = replace(game_cache[id])
+        player_id = request.args.get("player_id")
+        x = int(request.args.get("x"))
+        y = int(request.args.get("y"))
+        if player_id not in game.players:
+            raise RuntimeError(f"Incorrect player id: {player_id}.")
+        if len(game.players) != game.min_players:
+            raise RuntimeError(f"Waiting for player(s) to join.")
+        if len(game.players) != len(game.boards):
+            raise RuntimeError(f"Waiting for player(s) to set the board.")
 
-    cur_player_id = game.player_order[game.current_player]
-    if player_id != cur_player_id:
-        raise RuntimeError(f"Waiting for {game.players[cur_player_id].name}'s turn.")
+        cur_player_id = game.player_order[game.current_player]
+        if player_id != cur_player_id:
+            raise RuntimeError(f"Waiting for {game.players[cur_player_id].name}'s turn.")
 
-    other_player_id = game.player_order[(game.current_player + 1) % len(game.player_order)]
-    ships = game.boards[other_player_id].ships
-    turn_result = TurnResult.MISS
-    for ship in ships:
-        turn_result = ship.turn(x, y)
-        if turn_result != TurnResult.MISS:
-            break
+        other_player_id = game.player_order[(game.current_player + 1) % len(game.player_order)]
+        ships = game.boards[other_player_id].ships
+        turn_result = TurnResult.MISS
+        for ship in ships:
+            turn_result = ship.turn(x, y)
+            if turn_result != TurnResult.MISS:
+                break
 
-    game_over = TurnResult.KILL and len(ships) == sum(
-        1 for ship in ships if ship.killed()
-    )
+        game_over = TurnResult.KILL and len(ships) == sum(
+            1 for ship in ships if ship.killed()
+        )
 
-    if game_over:
-        game.winner = game.players[cur_player_id].name
-    elif game.turn_rule == TurnRule.ONE_BY_ONE or turn_result == TurnResult.MISS:
-        # Switching the turn.
-        game.current_player = (game.current_player + 1) % len(game.players)
+        if game_over:
+            game.winner = game.players[cur_player_id].name
+        elif game.turn_rule == TurnRule.ONE_BY_ONE or turn_result == TurnResult.MISS:
+            # Switching the turn.
+            game.current_player = (game.current_player + 1) % len(game.players)
 
-    turn = Turn(x, y, turn_result)
-    game.player_turns[player_id].append(turn)
-    game_cache[id] = game
-    return asdict(turn)
+        turn = Turn(x, y, turn_result)
+        game.player_turns[player_id].append(turn)
+        game_cache[id] = game
+        return asdict(turn)
+    except Exception as e:
+        app.log.error(e)
+        raise

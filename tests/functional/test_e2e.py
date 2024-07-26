@@ -24,7 +24,7 @@ def ids() -> GameIds:
         res2 = test_client.get(f"/join_game/{game_id}")
         player2_id = res2.json["player"]["id"]
         test_ship3 = Ship([(0, 2), (0, 3), (0, 4)])
-        test_ship5 = Ship([(0, 0), (0, 1), (0, 2), (0, 3), (0, 4)])
+        test_ship5 = Ship([(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)])
         test_ship5_p2 = Ship([(3, 0), (4, 0), (5, 0), (6, 0), (7, 0)])
         ships1 = Ships([test_ship5, test_ship3])
         ships2 = Ships([test_ship5_p2, test_ship3])
@@ -43,7 +43,6 @@ def ids() -> GameIds:
 
 def assert_turns(client, game_id, player_id, x_y_res: list[(int, int, TurnResult)]):
     for x, y, turn_result in x_y_res:
-
         res = client.get(f"/turn/{game_id}?player_id={player_id}&x={x}&y={y}")
         assert res.status_code == 200
         assert res.json["result"] == turn_result

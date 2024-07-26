@@ -1,7 +1,7 @@
 from data.game_info import Ship, ShipAndHits, TurnResult
 
-test_ship2 = Ship(((0, 0), (0, 1)))
-test_ship5 = Ship(((0, 0), (0, 1), (0, 2), (0, 3), (0, 4)))
+test_ship2 = Ship({(0, 0), (0, 1)})
+test_ship5 = Ship({(0, 0), (0, 1), (0, 2), (0, 3), (0, 4)})
 
 def test_ship_miss():
     ship = ShipAndHits(test_ship2)
