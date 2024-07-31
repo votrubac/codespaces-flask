@@ -40,12 +40,27 @@ def ids() -> GameIds:
 
         return GameIds(game_id, player1_id, player2_id)
 
+def assert_ship_sinks(client, game_id, player_id, turns):
+    for i, (x, y) in enumerate(turns):
+        is_kill = i + 1 == len(turns)
+        assert_turns(  # sinking the second ship.
+            client,
+            game_id,
+            player_id,
+            [(x, y, TurnResult.KILL if is_kill else TurnResult.HIT, turns if is_kill else [])]
+        )    
 
-def assert_turns(client, game_id, player_id, x_y_res: list[(int, int, TurnResult)]):
-    for x, y, turn_result in x_y_res:
+def assert_turns(
+    client,
+    game_id,
+    player_id,
+    expected: list[(int, int, TurnResult, list[tuple[int, int]])],
+):
+    for x, y, turn_result, cells in expected:
         res = client.get(f"/turn/{game_id}?player_id={player_id}&x={x}&y={y}")
         assert res.status_code == 200
         assert res.json["result"] == turn_result
+        assert sorted(res.json["cells"]) == sorted(cells)
 
 
 def test_win(ids: GameIds):
@@ -59,30 +74,12 @@ def test_win(ids: GameIds):
         if players[current_player] != "Player 2":
             # Making a miss to switch turn to Player 1.
             assert_turns(
-                test_client, ids.game_id, ids.player1_id, [(0, 0, TurnResult.MISS)]
+                test_client, ids.game_id, ids.player1_id, [(0, 0, TurnResult.MISS, [])]
             )
 
         player_id = ids.player2_id
-
-        assert_turns(  # sinking the second ship.
-            test_client,
-            ids.game_id,
-            player_id,
-            [(0, 2, TurnResult.HIT), (0, 3, TurnResult.HIT), (0, 4, TurnResult.KILL)],
-        )
-
-        assert_turns(  # sinking the first ship.
-            test_client,
-            ids.game_id,
-            player_id,
-            [
-                (0, 0, TurnResult.HIT),
-                (1, 0, TurnResult.HIT),
-                (2, 0, TurnResult.HIT),
-                (3, 0, TurnResult.HIT),
-                (4, 0, TurnResult.KILL),
-            ],
-        )
+        assert_ship_sinks(test_client, ids.game_id, player_id, [[0, 2], [0, 3], [0, 4]])
+        assert_ship_sinks(test_client, ids.game_id, player_id, [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]])
 
         res = test_client.get(f"/status/{ids.game_id}")
         assert res.json["state"] == GameState.FINISHED

@@ -46,7 +46,6 @@ class Ship:
 class Ships:
     ships: list[Ship] = field(default_factory=list)
 
-
 @dataclass
 class Board:
     ships: list[Ship] = field(default_factory=list)
@@ -57,7 +56,7 @@ class Turn:
     x: int
     y: int
     result: TurnResult
-
+    cells: list[list[tuple[int, int]]] = field(default_factory=list)
 
 @dataclass
 class GameStatus:

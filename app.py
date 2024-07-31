@@ -73,13 +73,14 @@ def set_board(id: str):
     ships_dict = json.loads(request.args.get("ships"))
     try:
         board = Board([Ship(set([(c[0], c[1]) for c in ship])) for ship in ships_dict])
+        boardArray = [[(c[0], c[1]) for c in ship] for ship in ships_dict]
 
         game.boards[player_id] = board
         game_cache[id] = game
-        return ships_dict
+        return {"board": boardArray}
 
     except Exception as e:
-        app.log.error(e)
+        app.logger.error(e)
         raise
 
 
@@ -113,9 +114,12 @@ def turn(id: str):
             (game.current_player + 1) % len(game.player_order)
         ]
         ships = game.boards[other_player_id].ships
+        cells = []
         turn_result = TurnResult.MISS
         for ship in ships:
             turn_result = ship.turn(x, y)
+            if turn_result == TurnResult.KILL:
+                cells = [[x, y] for x, y in ship.cells]
             if turn_result != TurnResult.MISS:
                 break
 
@@ -129,10 +133,10 @@ def turn(id: str):
             # Switching the turn.
             game.current_player = (game.current_player + 1) % len(game.players)
 
-        turn = Turn(x, y, turn_result)
+        turn = Turn(x, y, turn_result, cells)
         game.player_turns[player_id].append(turn)
         game_cache[id] = game
         return asdict(turn)
     except Exception as e:
-        app.log.error(e)
+        app.logger.error(e)
         raise
