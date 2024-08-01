@@ -40,6 +40,7 @@ def ids() -> GameIds:
 
         return GameIds(game_id, player1_id, player2_id)
 
+
 def assert_ship_sinks(client, game_id, player_id, turns):
     for i, (x, y) in enumerate(turns):
         is_kill = i + 1 == len(turns)
@@ -47,8 +48,16 @@ def assert_ship_sinks(client, game_id, player_id, turns):
             client,
             game_id,
             player_id,
-            [(x, y, TurnResult.KILL if is_kill else TurnResult.HIT, turns if is_kill else [])]
-        )    
+            [
+                (
+                    x,
+                    y,
+                    TurnResult.KILL if is_kill else TurnResult.HIT,
+                    turns if is_kill else [],
+                )
+            ],
+        )
+
 
 def assert_turns(
     client,
@@ -63,8 +72,66 @@ def assert_turns(
         assert sorted(res.json["cells"]) == sorted(cells)
 
 
+def test_update_board(ids: GameIds):
+    with app.test_client() as test_client:
+        res = test_client.get(
+            f"/player_ready/{ids.game_id}?player_id={ids.player1_id}&ready=True"
+        )
+        assert res.status_code == 200
+
+        ships = [[(0, 2), (0, 3), (0, 4)]]
+        res = test_client.get(
+            f"/set_board/{ids.game_id}?player_id={ids.player1_id}&ships={json.dumps(ships)}"
+        )
+        assert res.status_code == 500  # Cannot update board once ready.
+
+        res = test_client.get(
+            f"/player_ready/{ids.game_id}?player_id={ids.player1_id}&ready=False"
+        )
+        assert res.status_code == 200
+        assert (
+            res.json["ready"] == False
+        )  # Can change the status when not all players are ready.
+
+        res = test_client.get(
+            f"/set_board/{ids.game_id}?player_id={ids.player1_id}&ships={json.dumps(ships)}"
+        )
+        assert res.status_code == 200  # Now the player can update the board.
+
+
+def test_ready(ids: GameIds):
+    with app.test_client() as test_client:
+        res = test_client.get(
+            f"/player_ready/{ids.game_id}?player_id={ids.player1_id}&ready=True"
+        )
+        assert res.status_code == 200
+
+        res = test_client.get(
+            f"/player_ready/{ids.game_id}?player_id={ids.player2_id}&ready=True"
+        )
+        assert res.status_code == 200
+
+        res = test_client.get(
+            f"/player_ready/{ids.game_id}?player_id={ids.player1_id}&ready=False"
+        )
+        assert res.status_code == 200
+        assert (
+            res.json["ready"] == True
+        )  # Cannot change the ready status once all players are ready.
+
+
 def test_win(ids: GameIds):
     with app.test_client() as test_client:
+        res = test_client.get(
+            f"/player_ready/{ids.game_id}?player_id={ids.player1_id}&ready=True"
+        )
+        assert res.status_code == 200
+
+        res = test_client.get(
+            f"/player_ready/{ids.game_id}?player_id={ids.player2_id}&ready=True"
+        )
+        assert res.status_code == 200
+
         res = test_client.get(f"/status/{ids.game_id}")
         assert res.json["state"] == GameState.TURN
 
@@ -79,7 +146,12 @@ def test_win(ids: GameIds):
 
         player_id = ids.player2_id
         assert_ship_sinks(test_client, ids.game_id, player_id, [[0, 2], [0, 3], [0, 4]])
-        assert_ship_sinks(test_client, ids.game_id, player_id, [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]])
+        assert_ship_sinks(
+            test_client,
+            ids.game_id,
+            player_id,
+            [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]],
+        )
 
         res = test_client.get(f"/status/{ids.game_id}")
         assert res.json["state"] == GameState.FINISHED

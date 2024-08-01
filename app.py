@@ -61,22 +61,47 @@ def join_game(id: str):
     return {"id": id, "player": player2}
 
 
+@app.route("/player_ready/<id>")
+def player_ready(id: str):
+    game: GameInfo = game_cache[id]
+    player_id = request.args.get("player_id")
+    ready = True if request.args.get("ready").lower() == "true" else False
+    if len(game.player_order) == len(game.ready_players):
+        # Cannot change once all players are ready.
+        return {"ready": True}
+
+    if player_id not in game.players:
+        raise RuntimeError(f"Incorrect player id: {player_id}.")
+
+    if ready and player_id not in game.boards:
+        player_name = game.players[player_id].name
+        raise RuntimeError(f"Board for {player_name} has not been set.")
+
+    if ready:
+        if player_id not in game.ready_players:
+            game.ready_players.append(player_id)
+    else:
+        if player_id in game.ready_players:
+            game.ready_players.remove(player_id)
+
+    return {"ready": ready}
+
+
 @app.route("/set_board/<id>")
 def set_board(id: str):
-    game: GameInfo = replace(game_cache[id])
+    game: GameInfo = game_cache[id]
     player_id = request.args.get("player_id")
     if player_id not in game.players:
         raise RuntimeError(f"Incorrect player id: {player_id}.")
-    if player_id in game.boards:
+    if player_id in game.ready_players:
         player_name = game.players[player_id].name
-        raise RuntimeError(f"Board for {player_name} has been set.")
+        raise RuntimeError(f"Player {player_name} is ready to play.")
     ships_dict = json.loads(request.args.get("ships"))
     try:
         board = Board([Ship(set([(c[0], c[1]) for c in ship])) for ship in ships_dict])
         boardArray = [[(c[0], c[1]) for c in ship] for ship in ships_dict]
 
         game.boards[player_id] = board
-        game_cache[id] = game
         return {"board": boardArray}
 
     except Exception as e:
@@ -86,8 +111,7 @@ def set_board(id: str):
 
 @app.route("/status/<id>")
 def status(id: str):
-    game: GameInfo = replace(game_cache[id])
-    return asdict(game.get_status())
+    return asdict(game_cache[id].get_status())
 
 
 @app.route("/turn/<id>")

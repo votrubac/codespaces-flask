@@ -26,6 +26,7 @@ class Player:
     id: str
     name: str
 
+
 @dataclass
 class Ship:
     cells: set[tuple[int, int]]
@@ -46,6 +47,7 @@ class Ship:
 class Ships:
     ships: list[Ship] = field(default_factory=list)
 
+
 @dataclass
 class Board:
     ships: list[Ship] = field(default_factory=list)
@@ -58,12 +60,14 @@ class Turn:
     result: TurnResult
     cells: list[list[tuple[int, int]]] = field(default_factory=list)
 
+
 @dataclass
 class GameStatus:
     state: GameState
     current_player: int
     joined_players: list[str]
     players_order: list[str]
+    ready_players: list[str]
     turns: dict[str, list[Turn]]
     winner: str
 
@@ -77,6 +81,7 @@ class GameInfo:
     players: dict[str, Player] = field(default_factory=dict)
     boards: dict[str, Board] = field(default_factory=dict)
     player_order: list[str] = field(default_factory=list)
+    ready_players: list[str] = field(default_factory=list)
     player_turns: dict[str, list[Turn]] = field(default_factory=dict)
     current_player: int = 0
     winner: str = ""
@@ -89,7 +94,7 @@ class GameInfo:
             if len(self.players) < self.min_players
             else (
                 GameState.SETUP
-                if len(self.players) != len(self.boards)
+                if len(self.players) != len(self.ready_players)
                 else GameState.FINISHED if self.winner else GameState.TURN
             )
         )
@@ -101,6 +106,9 @@ class GameInfo:
         players_order = [
             self.players[player_id].name for player_id in self.player_order
         ]
+        ready_players = [
+            self.players[player_id].name for player_id in self.ready_players
+        ]
         turns = {
             self.players[player_id].name: turns
             for player_id, turns in self.player_turns.items()
@@ -110,6 +118,7 @@ class GameInfo:
             self.current_player,
             joined_players,
             players_order,
+            ready_players,
             turns,
             self.winner,
         )
