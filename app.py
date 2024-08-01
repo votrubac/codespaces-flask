@@ -66,9 +66,6 @@ def player_ready(id: str):
     game: GameInfo = game_cache[id]
     player_id = request.args.get("player_id")
     ready = True if request.args.get("ready").lower() == "true" else False
-    if len(game.player_order) == len(game.ready_players):
-        # Cannot change once all players are ready.
-        return {"ready": True}
 
     if player_id not in game.players:
         raise RuntimeError(f"Incorrect player id: {player_id}.")
@@ -76,6 +73,10 @@ def player_ready(id: str):
     if ready and player_id not in game.boards:
         player_name = game.players[player_id].name
         raise RuntimeError(f"Board for {player_name} has not been set.")
+        
+    if len(game.players) >= game.min_players and len(game.players) == len(game.ready_players):
+        # Cannot change once all players are ready.
+        return {"ready": True}
 
     if ready:
         if player_id not in game.ready_players:
