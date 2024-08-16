@@ -9,9 +9,6 @@ from flask_cors import CORS
 from random import randint, shuffle
 from flask_caching import Cache
 
-app = Flask(__name__)
-CORS(app)
-
 test_game_id = "aaa-aaa-aaa"
 
 config = {
@@ -21,6 +18,8 @@ config = {
     "CACHE_DIR": "/tmp",
 }
 app = Flask(__name__)
+CORS(app)
+
 # tell Flask to use the above defined config
 app.config.from_mapping(config)
 game_cache = Cache(app)
