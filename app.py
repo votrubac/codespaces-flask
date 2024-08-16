@@ -13,7 +13,7 @@ test_game_id = "aaa-aaa-aaa"
 
 config = {
     "CACHE_TYPE": "FileSystemCache",
-    "CACHE_DEFAULT_TIMEOUT": 1440,  # keep a game around for 24 hours max.
+    "CACHE_DEFAULT_TIMEOUT": 86400,  # in seconds, keep a game around for 24 hours max.
     "CACHE_THRESHOLD": 10000,  # increasing the default (500) to support more active games.
     "CACHE_DIR": "/tmp",
 }
