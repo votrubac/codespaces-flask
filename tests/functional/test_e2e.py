@@ -86,8 +86,8 @@ def test_turn_rules():
         assert game1.status_code == 200
         assert game2.status_code == 200
 
-        status1 = test_client.get(f"/status/{game1.json["id"]}")
-        status2 = test_client.get(f"/status/{game2.json["id"]}")
+        status1 = test_client.get(f"/status/{game1.json['id']}")
+        status2 = test_client.get(f"/status/{game2.json['id']}")
 
         assert status1.status_code == 200
         assert status1.json["turn_rule"] == TurnRule.TILL_MISS
