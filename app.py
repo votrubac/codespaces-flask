@@ -43,7 +43,6 @@ def hello_world():
 def new_game():
     id = test_game_id  # test id
     turn_rule = TurnRule(request.args.get("turn_rule"))
-    game_cache.cached()
     while id and game_cache.has(id):
         id = f"{rand_xyz()}-{rand_xyz()}-{rand_xyz()}"
     game = GameInfo(id, turn_rule)
