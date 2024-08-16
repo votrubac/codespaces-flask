@@ -7,12 +7,23 @@ from flask import Flask
 from flask import request
 from flask_cors import CORS
 from random import randint, shuffle
+from flask_caching import Cache
 
 app = Flask(__name__)
 CORS(app)
 
 test_game_id = "aaa-aaa-aaa"
-game_cache = {}
+
+config = {
+    "CACHE_TYPE": "FileSystemCache",
+    "CACHE_DEFAULT_TIMEOUT": 1440,  # keep a game around for 24 hours max.
+    "CACHE_THRESHOLD": 10000,  # increasing the default (500) to support more active games.
+    "CACHE_DIR": "/tmp",
+}
+app = Flask(__name__)
+# tell Flask to use the above defined config
+app.config.from_mapping(config)
+game_cache = Cache(app)
 
 
 def rand_xyz() -> str:
@@ -33,20 +44,23 @@ def hello_world():
 def new_game():
     id = test_game_id  # test id
     turn_rule = TurnRule(request.args.get("turn_rule"))
-    while id and id in game_cache:
+    game_cache.cached()
+    while id and game_cache.has(id):
         id = f"{rand_xyz()}-{rand_xyz()}-{rand_xyz()}"
     game = GameInfo(id, turn_rule)
     player1_id = test_uuid("a") if game.id == test_game_id else str(uuid4())
     player1 = Player(player1_id, "Player 1")
     game.players[player1.id] = player1
     game.player_turns[player1.id] = []
-    game_cache[id] = game
+    game_cache.set(id, game)
     return {"id": id, "player": player1}
 
 
 @app.route("/join_game/<id>")
 def join_game(id: str):
-    game: GameInfo = replace(game_cache[id])
+    if not game_cache.has(id):
+        raise RuntimeError(f"Game {id} does not exists.")
+    game: GameInfo = game_cache.get(id)
     if len(game.players) == game.max_players:
         raise RuntimeError(f"Game {id} is full.")
     player2_id = test_uuid("b") if game.id == test_game_id else str(uuid4())
@@ -57,13 +71,15 @@ def join_game(id: str):
         # starting the game (TODO: support min_players)
         game.player_order = list(game.players.keys())
         shuffle(game.player_order)
-    game_cache[id] = game
+    game_cache.set(id, game)
     return {"id": id, "player": player2}
 
 
 @app.route("/player_ready/<id>")
 def player_ready(id: str):
-    game: GameInfo = game_cache[id]
+    if not game_cache.has(id):
+        raise RuntimeError(f"Game {id} does not exists.")
+    game: GameInfo = game_cache.get(id)
     player_id = request.args.get("player_id")
     ready = True if request.args.get("ready").lower() == "true" else False
 
@@ -73,8 +89,10 @@ def player_ready(id: str):
     if ready and player_id not in game.boards:
         player_name = game.players[player_id].name
         raise RuntimeError(f"Board for {player_name} has not been set.")
-        
-    if len(game.players) >= game.min_players and len(game.players) == len(game.ready_players):
+
+    if len(game.players) >= game.min_players and len(game.players) == len(
+        game.ready_players
+    ):
         # Cannot change once all players are ready.
         return {"ready": True}
 
@@ -85,12 +103,15 @@ def player_ready(id: str):
         if player_id in game.ready_players:
             game.ready_players.remove(player_id)
 
+    game_cache.set(id, game)
     return {"ready": ready}
 
 
 @app.route("/set_board/<id>")
 def set_board(id: str):
-    game: GameInfo = game_cache[id]
+    if not game_cache.has(id):
+        raise RuntimeError(f"Game {id} does not exists.")
+    game: GameInfo = game_cache.get(id)
     player_id = request.args.get("player_id")
     if player_id not in game.players:
         raise RuntimeError(f"Incorrect player id: {player_id}.")
@@ -103,6 +124,7 @@ def set_board(id: str):
         boardArray = [[(c[0], c[1]) for c in ship] for ship in ships_dict]
 
         game.boards[player_id] = board
+        game_cache.set(id, game)
         return {"board": boardArray}
 
     except Exception as e:
@@ -112,13 +134,17 @@ def set_board(id: str):
 
 @app.route("/status/<id>")
 def status(id: str):
-    return asdict(game_cache[id].get_status())
+    if not game_cache.has(id):
+        raise RuntimeError(f"Game {id} does not exists.")
+    return asdict(game_cache.get(id).get_status())
 
 
 @app.route("/turn/<id>")
 def turn(id: str):
     try:
-        game: GameInfo = replace(game_cache[id])
+        if not game_cache.has(id):
+            raise RuntimeError(f"Game {id} does not exists.")
+        game: GameInfo = game_cache.get(id)
         player_id = request.args.get("player_id")
         x = int(request.args.get("x"))
         y = int(request.args.get("y"))
@@ -160,7 +186,7 @@ def turn(id: str):
 
         turn = Turn(x, y, turn_result, cells)
         game.player_turns[player_id].append(turn)
-        game_cache[id] = game
+        game_cache.set(id, game)
         return asdict(turn)
     except Exception as e:
         app.logger.error(e)
