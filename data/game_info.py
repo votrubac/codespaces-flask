@@ -64,6 +64,7 @@ class Turn:
 @dataclass
 class GameStatus:
     state: GameState
+    turn_rule: TurnRule
     current_player: int
     joined_players: list[str]
     players_order: list[str]
@@ -115,6 +116,7 @@ class GameInfo:
         }
         return GameStatus(
             self.get_game_state(),
+            self.turn_rule,
             self.current_player,
             joined_players,
             players_order,

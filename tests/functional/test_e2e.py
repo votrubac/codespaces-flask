@@ -1,6 +1,6 @@
 from collections import namedtuple
 from dataclasses import asdict
-from data.game_info import Ship, GameState, TurnResult
+from data.game_info import Ship, GameState, TurnResult, TurnRule
 import pytest
 import json
 from app import app
@@ -15,7 +15,8 @@ GameIds = namedtuple("GameInfo", ["game_id", "player1_id", "player2_id"])
 @pytest.fixture
 def ids() -> GameIds:
     with app.test_client() as test_client:
-        res1 = test_client.get("/new_game?turn_rule=TILL_MISS")
+        turn_rule = TurnRule.TILL_MISS
+        res1 = test_client.get(f"/new_game?turn_rule={turn_rule}")
         assert res1.status_code == 200
 
         game_id = res1.json["id"]
@@ -37,6 +38,12 @@ def ids() -> GameIds:
             f"/set_board/{game_id}?player_id={player2_id}&ships={json.dumps(ships2)}"
         )
         assert res.status_code == 200
+        res = test_client.get(
+            f"/status/{game_id}"
+        )
+        assert res.status_code == 200
+        assert res.json["turn_rule"] == turn_rule
+        assert res.json["state"] == GameState.SETUP
 
         return GameIds(game_id, player1_id, player2_id)
 
@@ -70,6 +77,24 @@ def assert_turns(
         assert res.status_code == 200
         assert res.json["result"] == turn_result
         assert sorted(res.json["cells"]) == sorted(cells)
+
+def test_turn_rules():
+    with app.test_client() as test_client:
+        game1 = test_client.get(f"/new_game?turn_rule={TurnRule.TILL_MISS}")
+        game2 = test_client.get(f"/new_game?turn_rule={TurnRule.ONE_BY_ONE}")
+
+        assert game1.status_code == 200
+        assert game2.status_code == 200
+
+        status1 = test_client.get(f"/status/{game1.json["id"]}")
+        status2 = test_client.get(f"/status/{game2.json["id"]}")
+
+        assert status1.status_code == 200
+        assert status1.json["turn_rule"] == TurnRule.TILL_MISS
+        assert status1.json["state"] == GameState.LOBBY
+        assert status2.status_code == 200
+        assert status2.json["turn_rule"] == TurnRule.ONE_BY_ONE
+        assert status2.json["state"] == GameState.LOBBY
 
 
 def test_update_board(ids: GameIds):
